@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Personal Mailer</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--tx:#1d1d1b;--mut:#6b6a66;--ac:#2f5bea;--bd:#e2e0da;--ok:#1b8a4b;--er:#d33;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#151514;--card:#201f1e;--tx:#f0efec;--mut:#9a9893;--ac:#7a9bff;--bd:#33312f;--ok:#4ccb86;--er:#ff7a7a}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}p.s{color:var(--mut);margin:0 0 14px;font-size:14px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;margin-bottom:12px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 8px}
+input[type=text],input:not([type]),textarea{width:100%;font:inherit;color:var(--tx);background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:9px;margin-bottom:8px}
+textarea{min-height:110px;resize:vertical}
+button,label.b{font:inherit;border:0;border-radius:10px;padding:9px 13px;background:var(--ac);color:#fff;cursor:pointer;display:inline-block}
+button.g,label.b{background:transparent;color:var(--ac);border:1px solid var(--bd)}
+.r{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row{display:grid;grid-template-columns:22px 1fr 1.3fr 30px;gap:6px;align-items:center;margin-bottom:6px}
+.row input{margin:0;padding:8px;font-size:15px}.row input.bad{border-color:var(--er)}
+.row .n{color:var(--mut);font-size:12px;text-align:center}.row .n.d{color:var(--ok);font-size:16px}
+.x{background:none;color:var(--mut);padding:2px;font-size:18px}
+.hint{font-size:13px;color:var(--mut)}.ban{background:var(--bg);border:1px solid var(--ok);border-radius:10px;padding:10px;margin-bottom:10px}
+pre{white-space:pre-wrap;background:var(--bg);padding:10px;border-radius:10px;font-size:12px;overflow-x:auto;max-height:220px}
+</style></head><body><main>
+<h1>✉️ Personal Mailer</h1>
+<p class="s">One mail, sent to everyone with their own name in it.</p>
+
+<div class="c"><h2>1 · Your sheet</h2>
+<div class="r" style="margin-bottom:10px">
+<button id="add">+ Add row</button>
+<label class="b">Import file<input id="f" type="file" accept=".xlsx,.xls,.csv" hidden></label>
+<button class="g" id="pb">Paste rows</button><button class="g" id="clr">Clear all</button></div>
+<div id="pw" hidden><textarea id="t" placeholder="Rahul Sharma, rahul@gmail.com&#10;Priya, priya@example.com"></textarea><button id="pa" style="margin-bottom:10px">Add pasted rows</button></div>
+<div id="ban"></div>
+<div id="sheet"></div>
+<div class="hint" id="cnt"></div></div>
+
+<div class="c"><h2>2 · Your mail</h2>
+<input id="sub" placeholder="Subject (you can use {name})">
+<textarea id="body" placeholder="Hi {name},&#10;&#10;Write your mail here. {name} becomes each person’s name.&#10;&#10;Regards,&#10;Me"></textarea></div>
+
+<div class="c"><h2>3 · Send</h2>
+<div class="r"><button id="next">Send to next person</button><button class="g" id="rs">Reset ticks</button></div>
+<div class="r" style="margin:10px 0 2px"><label class="hint"><input type="checkbox" id="gm" style="width:auto;margin:0 6px 0 0">Use Gmail in browser instead of mail app</label></div>
+<div class="r"><label class="hint"><input type="checkbox" id="ac" checked style="width:auto;margin:0 6px 0 0">When the last mail is done, clear the whole sheet and start fresh</label></div>
+<p class="hint">Each tap opens your mail app with the personalised mail ready. Press Send there, then come back and tap again.</p></div>
+
+<div class="c"><h2>Fully automatic (optional)</h2>
+<p class="hint" style="margin-top:0">Put names in column A and emails in column B of a Google Sheet, then Extensions → Apps Script, paste this and Run.</p>
+<button class="g" id="gen">Generate script</button><pre id="code" hidden></pre><button class="g" id="cp" hidden style="margin-top:8px">Copy script</button></div>
+</main>
+<script>
+var R=[],BK=null,$=function(i){return document.getElementById(i)},K='pmailer2';
+var E=/[^\s,;<>"']+@[^\s,;<>"']+\.[^\s,;<>"']+/,OK=function(r){return E.test(r.email)};
+function save(){try{localStorage.setItem(K,JSON.stringify({r:R,s:$('sub').value,b:$('body').value,a:$('ac').checked}))}catch(e){}}
+function parseRows(rows){var o=[];rows.forEach(function(row){var c=row.map(function(x){return String(x==null?'':x).trim()}).filter(Boolean);var em=c.filter(function(x){return E.test(x)})[0];if(!em)return;var nm=c.filter(function(x){return x!==em&&!E.test(x)})[0]||'';o.push({name:nm,email:em.match(E)[0],done:false})});return o}
+function stat(){var v=R.filter(OK);$('cnt').textContent=R.length+' row'+(R.length==1?'':'s')+' · '+v.filter(function(r){return r.done}).length+'/'+v.length+' done'}
+function render(){var s=$('sheet');s.innerHTML='';R.forEach(function(r,i){var d=document.createElement('div');d.className='row';
+var n=document.createElement('div');n.className='n'+(r.done?' d':'');n.textContent=r.done?'✓':i+1;
+var a=document.createElement('input');a.placeholder='Name';a.value=r.name;a.oninput=function(){r.name=a.value;save()};
+var b=document.createElement('input');b.placeholder='email@example.com';b.value=r.email;b.type='email';b.inputMode='email';b.className=r.email&&!OK(r)?'bad':'';b.oninput=function(){r.email=b.value.trim();b.className=r.email&&!OK(r)?'bad':'';stat();save()};
+var x=document.createElement('button');x.className='x';x.textContent='×';x.onclick=function(){R.splice(i,1);render();save()};
+d.appendChild(n);d.appendChild(a);d.appendChild(b);d.appendChild(x);s.appendChild(d)});
+if(!R.length)s.innerHTML='<p class="hint">Your sheet is empty. Add a row, import a file or paste rows.</p>';stat()}
+function banner(m,undo){var b=$('ban');b.innerHTML='';if(!m)return;var d=document.createElement('div');d.className='ban';d.textContent=m+' ';if(undo){var u=document.createElement('button');u.className='g';u.textContent='Undo';u.onclick=function(){R=BK;BK=null;banner('');render();save()};d.appendChild(u)}b.appendChild(d)}
+function fill(s,n){return s.replace(/\{name\}/gi,n||'there')}
+function link(r){var s=encodeURIComponent(fill($('sub').value,r.name)),b=encodeURIComponent(fill($('body').value,r.name));
+return $('gm').checked?'https://mail.google.com/mail/?view=cm&fs=1&to='+encodeURIComponent(r.email)+'&su='+s+'&body='+b:'mailto:'+r.email+'?subject='+s+'&body='+b.replace(/%0A/g,'%0D%0A')}
+function go(r){r.done=true;window.open(link(r),'_blank');var v=R.filter(OK);
+if(v.length&&v.every(function(x){return x.done})){if($('ac').checked){BK=R;R=[];render();save();banner('🎉 All mails done. Sheet cleared and ready for a fresh start.',true);return}banner('🎉 All mails done.')}render();save()}
+$('add').onclick=function(){R.push({name:'',email:'',done:false});render();save();var i=document.querySelectorAll('.row input');if(i.length)i[i.length-2].focus()};
+$('pb').onclick=function(){$('pw').hidden=!$('pw').hidden};
+$('pa').onclick=function(){R=R.concat(parseRows($('t').value.split('\n').map(function(l){return l.split(/[,;\t]/)})));$('t').value='';$('pw').hidden=true;render();save()};
+$('clr').onclick=function(){if(R.length&&confirm('Clear the whole sheet?')){BK=R;R=[];render();save();banner('Sheet cleared.',true)}};
+$('f').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(rd.result,{type:'array'});R=R.concat(parseRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1})));render();save()}catch(x){alert('Couldn’t read that file. Try .csv or paste the rows.')}};rd.readAsArrayBuffer(f);e.target.value=''};
+$('sub').oninput=$('body').oninput=$('ac').onchange=save;
+$('next').onclick=function(){var r=R.filter(function(x){return OK(x)&&!x.done})[0];if(r)go(r);else alert('Nobody left. Add rows with valid emails first.')};
+$('rs').onclick=function(){R.forEach(function(r){r.done=false});banner('');render();save()};
+$('gen').onclick=function(){var c='function sendMails(){\n  var rows=SpreadsheetApp.getActiveSheet().getDataRange().getValues();\n  var subj='+JSON.stringify($('sub').value)+';\n  var body='+JSON.stringify($('body').value)+';\n  rows.forEach(function(r){\n    var name=String(r[0]||"there"),mail=String(r[1]||"");\n    if(mail.indexOf("@")<0)return;\n    GmailApp.sendEmail(mail,subj.replace(/\\{name\\}/gi,name),body.replace(/\\{name\\}/gi,name));\n  });\n}';$('code').textContent=c;$('code').hidden=false;$('cp').hidden=false};
+$('cp').onclick=function(){try{navigator.clipboard.writeText($('code').textContent);$('cp').textContent='Copied ✓'}catch(e){}};
+try{var s=JSON.parse(localStorage.getItem(K)||'null');if(s){R=s.r||[];$('sub').value=s.s||'';$('body').value=s.b||'';$('ac').checked=s.a!==false}}catch(e){}
+render();
+</script></body></html>
